@@ -1,79 +1,36 @@
-from django.shortcuts import render
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import permissions, status
+from rest_framework import generics
+from rest_framework import permissions
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.contrib.auth.models import User
 
-from .serializers import TodoSerializer
+from .serializers import TodoSerializer, UserSerializer
 from .models import Todo
 
 # Create your views here.
-class TodoListView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+class TodoListView(generics.ListCreateAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get(self, request, *args, **kwargs):
-        todos = Todo.objects.filter(user=request.user)
-        serializers = TodoSerializer(todos, many=True)
-        return Response(serializers.data, status=status.HTTP_200_OK)
+    queryset = Todo.objects.all()
+    serializer_class = TodoSerializer
 
-    def post(self, request, *args, **kwargs):
-        data = {
-            'task': request.data.get('task'), 
-            'completed': request.data.get('completed'), 
-            'user': request.user.id
-        }
-        serializer = TodoSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class TodoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-class TodoDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    queryset = Todo.objects.all()
+    serializer_class = TodoSerializer
 
-    def get_object(self, todo_id, user_id):
-        try:
-            return Todo.objects.get(id=todo_id, user=user_id)
-        except Todo.DoesNotExist:
-            return None
+class UserListView(generics.ListCreateAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def get(self, request, todo_id, *args, **kwargs):
-        todo = self.get_object(todo_id, request.user.id)
-        if todo:
-            serializer = TodoSerializer(todo)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            return Response(
-                {"res": "Object with todo id does not exists"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
-    def put(self, request, todo_id, *args, **kwargs):
-        todo = self.get_object(todo_id, request.user.id)
-        if not todo:
-            return Response(
-                {"res": "Object with todo id does not exists"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        data = {
-            'task': request.data.get('task'),
-            'completed': request.data.get('completed'),
-            'user': request.user.id
-        }
-        serializer = TodoSerializer(todo, data=data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-    def delete(self, request, todo_id, *args, **kwargs):
-        todo = self.get_object(todo_id, request.user.id)
-        if not todo:
-            return Response(
-                {"res": "Object with todo id does not exists"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        todo.delete()
-        return Response(
-            {"res": "Object deleted"},
-            status=status.HTTP_200_OK
-        )
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
